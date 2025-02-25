@@ -24,7 +24,10 @@ export class ClientNetwork extends System {
   init({ wsUrl, apiUrl }) {
     const authToken = storage.get('authToken')
     this.apiUrl = apiUrl
-    this.ws = new WebSocket(`${wsUrl}?authToken=${authToken}`)
+    // Use BASE_PATH exactly as provided or '/' if not set
+    const basePath = process.env.BASE_PATH || '/'
+    const wsUrlWithBase = `${wsUrl}${wsUrl.endsWith('/') ? '' : '/'}${basePath}ws`
+    this.ws = new WebSocket(`${wsUrlWithBase}?authToken=${authToken}`)
     this.ws.binaryType = 'arraybuffer'
     this.ws.addEventListener('message', this.onPacket)
     this.ws.addEventListener('close', this.onClose)
@@ -41,12 +44,14 @@ export class ClientNetwork extends System {
   }
 
   async upload(file) {
+    // Use BASE_PATH exactly as provided or '/' if not set
+    const basePath = process.env.BASE_PATH || '/'
     {
       // first check if we even need to upload it
       const hash = await hashFile(file)
       const ext = file.name.split('.').pop().toLowerCase()
       const filename = `${hash}.${ext}`
-      const url = `${this.apiUrl}/upload-check?filename=${filename}`
+      const url = `${this.apiUrl}${this.apiUrl.endsWith('/') ? '' : '/'}${basePath}api/upload-check?filename=${filename}`
       const resp = await fetch(url)
       const data = await resp.json()
       if (data.exists) return // console.log('already uploaded:', filename)
@@ -54,7 +59,7 @@ export class ClientNetwork extends System {
     // then upload it
     const form = new FormData()
     form.append('file', file)
-    const url = `${this.apiUrl}/upload`
+    const url = `${this.apiUrl}${this.apiUrl.endsWith('/') ? '' : '/'}${basePath}api/upload`
     await fetch(url, {
       method: 'POST',
       body: form,
